@@ -215,7 +215,7 @@ class ToolkitTask(PromptTask, ActionsSubtaskOriginMixin):
             if memory.name == memory_name:
                 return memory
         raise ValueError(f"Memory with name {memory_name} not found.")
-    
+
     def __hash__(self) -> int:
         return BaseTask.__hash__(self)
 

@@ -1,5 +1,5 @@
 from tests.mocks.mock_prompt_driver import MockPromptDriver
-from griptape.utils import StructureVisualizer, TaskGraphBuilder
+from griptape.utils import StructureVisualizer
 from griptape.tasks import PromptTask
 from griptape.structures import Agent, Workflow, Pipeline
 
@@ -33,14 +33,12 @@ class TestStructureVisualizer:
         )
 
     def test_workflow(self):
-        workflow = Workflow(
-            prompt_driver=MockPromptDriver(),
-            task_graph=TaskGraphBuilder()
+        workflow = (
+            Workflow(prompt_driver=MockPromptDriver())
             .add_task(PromptTask("test1", id="task1"))
             .add_task(PromptTask("test2", id="task2"), parents={"task1"})
             .add_task(PromptTask("test3", id="task3"), parents={"task1"})
             .add_task(PromptTask("test4", id="task4"), parents={"task2", "task3"})
-            .build_task_graph(),
         )
 
         visualizer = StructureVisualizer(workflow)

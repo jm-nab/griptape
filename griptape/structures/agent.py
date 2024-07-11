@@ -4,8 +4,6 @@ from attrs import define, field
 from griptape.artifacts.text_artifact import TextArtifact
 from griptape.structures import Structure
 from griptape.tasks import PromptTask, ToolkitTask
-from griptape.structures import Structure
-from griptape.tasks import PromptTask, ToolkitTask
 
 if TYPE_CHECKING:
     from griptape.tools import BaseTool
@@ -53,7 +51,7 @@ class Agent(Structure):
     def tasks(self) -> set[BaseTask]:
         return {self.task} if self.task else set()
 
-    def add_task(self, task: Optional[BaseTask], **kwargs) -> BaseTask:
+    def add_task(self, task: Optional[BaseTask], **kwargs) -> Agent:
         if task is None:
             raise ValueError("Task must be provided.")
         if self._has_default_task:
@@ -62,7 +60,7 @@ class Agent(Structure):
             self.task.preprocess(self)
         else:
             raise ValueError("Agents can only have one task.")
-        return task
+        return self
 
     def _from_task_graph(self) -> None:
         if self._task_graph is not None:

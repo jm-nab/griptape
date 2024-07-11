@@ -42,4 +42,3 @@ class StructureVisualizer:
 
     def __get_id(self, string: str) -> str:
         return hashlib.md5(string.encode()).hexdigest()[:8]
-

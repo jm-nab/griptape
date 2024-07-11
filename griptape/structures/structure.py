@@ -108,7 +108,7 @@ class Structure(ABC):
             deprecation_warn(f"`{attribute.name}` is deprecated, use `config.prompt_driver.stream` instead.")
 
     @abstractmethod
-    def add_task(self, task: Optional[BaseTask], **kwargs) -> BaseTask: ...
+    def add_task(self, task: Optional[BaseTask], **kwargs) -> Structure: ...
 
     @property
     @abstractmethod
@@ -223,8 +223,9 @@ class Structure(ABC):
                 return task
         raise ValueError(f"Task with id {task_id} doesn't exist.")
 
-    def add_tasks(self, *tasks: BaseTask) -> list[BaseTask]:
-        return [self.add_task(s) for s in tasks]
+    def add_tasks(self, *tasks: BaseTask, **kwargs) -> Structure:
+        [self.add_task(s) for s in tasks]
+        return self
 
     def add_event_listener(self, event_listener: EventListener) -> EventListener:
         if event_listener not in self.event_listeners:
@@ -303,16 +304,16 @@ class Structure(ABC):
         return result
 
     def find_parents(self, task: Optional[BaseTask]) -> list[BaseTask]:
-        if task is None:
-            return []
-        for t, parents in self.task_graph.items():
-            if t.id == task.id:
-                return list(parents)
+        if task is not None:
+            for t, parents in self.task_graph.items():
+                if t.id == task.id:
+                    return list(parents)
+        return []
 
     def find_children(self, task: Optional[BaseTask]) -> list[BaseTask]:
-        if task is None:
-            return []
-        return [n for n, p in self.task_graph.items() if task.id in {parent.id for parent in p}]
+        if task is not None:
+            return [n for n, p in self.task_graph.items() if task.id in {parent.id for parent in p}]
+        return []
 
     def to_graph(self) -> dict[str, set[str]]:
         graph: dict[str, set[str]] = {}
@@ -322,5 +323,6 @@ class Structure(ABC):
 
         return graph
 
-    def __add__(self, other: BaseTask | list[BaseTask]) -> list[BaseTask]:
-        return self.add_tasks(*other) if isinstance(other, list) else self + [other]
+    def __add__(self, other: BaseTask | list[BaseTask]) -> Structure:
+        self.add_tasks(*other) if isinstance(other, list) else self + [other]
+        return self

@@ -159,7 +159,7 @@ class BaseTask(ABC):
         return isinstance(other, BaseTask) and self is other
 
     def __hash__(self) -> int:
-        return super.__hash__(self)
+        return super.__hash__(super)
 
     def __cmp__(self, other: Any) -> int:
         return self.id == other.id

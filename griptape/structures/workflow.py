@@ -3,10 +3,7 @@ from graphlib import TopologicalSorter
 from typing import Any, Optional, TYPE_CHECKING
 from attrs import define, field
 from griptape.structures import Structure
-from graphlib import CycleError, TopologicalSorter
-from typing import Any, Optional
-from attrs import define, field
-from griptape.structures import Structure
+from graphlib import CycleError
 from griptape.tasks import BaseTask
 
 if TYPE_CHECKING:
@@ -52,7 +49,7 @@ class Workflow(Structure):
         )
 
         return context
-    
+
     def before_run(self, args: Any) -> None:
         self._validate()
         self._task_graph = self._build_task_graph()
@@ -71,14 +68,20 @@ class Workflow(Structure):
                 self.task_id_graph[task_id].add(parent_id)
 
             self._tasks.add(task)
-        
+
         self._task_graph = None
 
         return self
 
     def add_task(
-        self, task: BaseTask | str, *, parents: Optional[set[BaseTask | str]] = None, children: Optional[set[BaseTask | str]] = None
+        self,
+        task: Optional[BaseTask | str],
+        parents: Optional[set[BaseTask | str]] = None,
+        children: Optional[set[BaseTask | str]] = None,
+        **kwargs,
     ) -> Workflow:
+        if task is None:
+            raise ValueError("Task must be provided")
         if parents is None:
             parents = set()
         if children is None:
@@ -89,8 +92,14 @@ class Workflow(Structure):
         return self
 
     def add_tasks(
-        self, *tasks: BaseTask | str, parents: Optional[set[BaseTask | str]] = None, children: Optional[set[BaseTask | str]] = None
+        self,
+        *tasks: BaseTask | str,
+        parents: Optional[set[BaseTask | str]] = None,
+        children: Optional[set[BaseTask | str]] = None,
+        **kwargs,
     ) -> Workflow:
+        if not tasks:
+            raise ValueError("Tasks must be provided")
         if parents is None:
             parents = set()
         if children is None:
@@ -99,7 +108,7 @@ class Workflow(Structure):
         for task in tasks:
             self._build_task(task, parents=parents, children=children)
 
-        self._last_tasks = set(tasks)
+        self._last_tasks = set(tasks)  # pyright: ignore
 
         return self
 
@@ -134,8 +143,10 @@ class Workflow(Structure):
             self.add_task(task, children=set(children))
         self._last_tasks = set(children)
         return self
-    
-    def _build_task(self, task: BaseTask | str, parents: set[BaseTask | str], children: set[BaseTask | str]) -> Workflow:
+
+    def _build_task(
+        self, task: BaseTask | str, parents: set[BaseTask | str], children: set[BaseTask | str]
+    ) -> Workflow:
         from griptape.tasks import BaseTask
 
         if isinstance(task, BaseTask):
@@ -166,6 +177,7 @@ class Workflow(Structure):
             if self.task_id_graph.get(child_id) is None:
                 self.task_id_graph[child_id] = set()
             self.task_id_graph[child_id].add(task_id)
+        return self
 
     def _build_task_graph(self) -> dict[BaseTask, set[BaseTask]]:
         self._validate()

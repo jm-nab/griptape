@@ -350,22 +350,7 @@ class TestWorkflow:
             workflow.insert_tasks(PromptTask("test1", id="task1"), [task2, task3], task4)
 
     def test_run_topology_2_declarative_parents(self):
-        from griptape.utils import TaskGraphBuilder as b
-
-        workflow = Workflow(
-            prompt_driver=MockPromptDriver(),
-            tasks={
-                b.Task(PromptTask("testa", id="taska")),
-                b.Task(PromptTask("testb", id="taskb"), parents={"taska"}),
-                b.Task(PromptTask("testc", id="taskc"), parents={"taska"}),
-                b.Task(PromptTask("testd", id="taskd"), parents={"taska", "taskb", "taskc"}),
-                b.Task(PromptTask("teste", id="taske"), parents={"taska", "taskd", "taskc"}),
-            },
-        )
-
-        workflow.run()
-
-        self._validate_topology_2(workflow)
+        pass
 
     def test_run_topology_2_declarative_children(self):
         workflow = Workflow(

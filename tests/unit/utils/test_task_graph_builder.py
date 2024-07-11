@@ -59,29 +59,15 @@ class TestBuilder:
         task3 = PromptTask("test3", id="task3")
         task4 = PromptTask("test4", id="task4")
 
-        workflow7 = (
-            Workflow(
-                config=MockStructureConfig(),
-                task_graph={
-                    task1: set(),
-                    task2: {task1},
-                    task3: {task1},
-                    task4: {task2, task3},
-                }
-            )
+        workflow7 = Workflow(
+            config=MockStructureConfig(),
+            task_graph={task1: set(), task2: {task1}, task3: {task1}, task4: {task2, task3}},
         )
 
-        workflow8 = (
-            Workflow(
-                config=MockStructureConfig(),
-                tasks={task1, task2, task3, task4},
-                task_id_graph={
-                    "task1": set(),
-                    "task2": {"task1"},
-                    "task3": {"task1"},
-                    "task4": {"task2", "task3"},
-                }
-            )
+        workflow8 = Workflow(
+            config=MockStructureConfig(),
+            tasks={task1, task2, task3, task4},
+            task_id_graph={"task1": set(), "task2": {"task1"}, "task3": {"task1"}, "task4": {"task2", "task3"}},
         )
 
         assert workflow1.task_id_graph == {
@@ -96,14 +82,13 @@ class TestBuilder:
         assert workflow1.task_id_graph == workflow7.task_id_graph
         assert workflow1.task_id_graph == workflow8.task_id_graph
 
-
         workflow1.run()
         workflow3.run()
         workflow4.run()
         workflow6.run()
         workflow7.run()
         workflow8.run()
-        
+
     ## Building workflows with a pipeline
     def test_workflow_builder_with_pipeline(self):
         pipeline = Pipeline(
@@ -115,25 +100,14 @@ class TestBuilder:
                 PromptTask("test4", id="task4"),
             ],
         )
-        workflow = (
-            Workflow(
-                config=MockStructureConfig(),
-                tasks=pipeline.tasks,
-                task_graph=pipeline.task_graph,
-            )
-            .add_task(PromptTask("extra_task", id="task_extra"), parents={"task2"}, children={"task3"})
-        )
+        workflow = Workflow(
+            config=MockStructureConfig(), tasks=pipeline.tasks, task_graph=pipeline.task_graph
+        ).add_task(PromptTask("extra_task", id="task_extra"), parents={"task2"}, children={"task3"})
 
         pipeline.run()
         workflow.run()
 
-        assert pipeline.to_graph() == {
-            "task1": set(),
-            "task2": {"task1"},
-            "task3": {"task2"},
-            "task4": {"task3"},
-        }
-
+        assert pipeline.to_graph() == {"task1": set(), "task2": {"task1"}, "task3": {"task2"}, "task4": {"task3"}}
 
         assert workflow.to_graph() == {
             "task1": set(),
@@ -145,19 +119,8 @@ class TestBuilder:
 
     ## Building workflows with an Agent
     def test_workflow_builder_with_agent(self):
-        agent = Agent(
-            config=MockStructureConfig(),
-            tools=[
-                DateTime(),
-            ],
-        )
-        workflow = (
-            Workflow(
-                config=MockStructureConfig(),
-                tasks=agent.tasks,
-                task_graph=agent.task_graph,
-            )
-        )
+        agent = Agent(config=MockStructureConfig(), tools=[DateTime()])
+        workflow = Workflow(config=MockStructureConfig(), tasks=agent.tasks, task_graph=agent.task_graph)
 
         agent.run()
         workflow.run()

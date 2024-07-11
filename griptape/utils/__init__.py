@@ -18,7 +18,6 @@ from .load_artifact_from_memory import load_artifact_from_memory
 from .deprecation import deprecation_warn
 from .structure_visualizer import StructureVisualizer
 from .reference_utils import references_from_artifacts
-from .task_graph_builder import TaskGraphBuilder
 
 
 def minify_json(value: str) -> str:
@@ -49,5 +48,4 @@ __all__ = [
     "load_files",
     "StructureVisualizer",
     "references_from_artifacts",
-    "TaskGraphBuilder",
 ]

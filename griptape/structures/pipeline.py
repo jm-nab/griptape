@@ -20,6 +20,7 @@ class Pipeline(Structure):
     @property
     def tasks(self) -> set[BaseTask]:
         return set(self._tasks)
+
     @property
     def task_graph(self) -> dict[BaseTask, set[BaseTask]]:
         task_graph = {}
@@ -52,7 +53,7 @@ class Pipeline(Structure):
         parent: Optional[BaseTask | str] = None,
         child: Optional[BaseTask | str] = None,
         **kwargs,
-    ) -> BaseTask:
+    ) -> Pipeline:
         if task is None:
             raise ValueError("Task must be provided.")
         try:
@@ -67,10 +68,10 @@ class Pipeline(Structure):
                 raise ValueError("Parent and child tasks must be adjacent.")
             if parent_task is not None:
                 self._tasks.insert(self._tasks.index(parent_task) + 1, task)
-                return task
+                return self
             elif child_task is not None:
                 self._tasks.insert(self._tasks.index(child_task), task)
-                return task
+                return self
         except ValueError as e:
             raise ValueError("Parent or child task not found in the pipeline.") from e
 
@@ -80,7 +81,7 @@ class Pipeline(Structure):
         task.preprocess(self)
         self._tasks.insert(index, task)
 
-        return task
+        return self
 
     def _from_task_graph(self) -> None:
         for task, parents in self._task_graph.items():
