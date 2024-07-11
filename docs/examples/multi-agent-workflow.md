@@ -145,7 +145,7 @@ def build_writer(role: str, goal: str, backstory: str):
 if __name__ == "__main__":
     # Build the team
     team = Workflow()
-    research_task = team.add_task(
+    team.add_task(
         StructureRunTask(
             (
                 """Perform a detailed examination of the newest developments in AI as of 2024.
@@ -156,8 +156,7 @@ if __name__ == "__main__":
                 structure_factory_fn=build_researcher,
             ),
         ),
-    )
-    writer_tasks = team.add_tasks(*[
+    ).add_children(*[
         StructureRunTask(
             (
                 """Using insights provided, develop an engaging blog
@@ -175,16 +174,13 @@ if __name__ == "__main__":
                     backstory=writer["backstory"],
                 )
             ),
-            parent_ids=[research_task.id],
         )
         for writer in WRITERS
-    ])
-    end_task = team.add_task(
+    ]).add_child(
         PromptTask(
             'State "All Done!"',
             parent_ids=[writer_task.id for writer_task in writer_tasks],
         )
     )
-
     team.run()
 ```

@@ -149,23 +149,6 @@ class TestWorkflow:
 
         assert len(workflow.conversation_memory.runs) == 3
 
-    def test_tasks_initialization(self):
-        first_task = PromptTask(id="test1")
-        second_task = PromptTask(id="test2")
-        third_task = PromptTask(id="test3")
-        workflow = Workflow(tasks=[first_task, second_task, third_task])
-
-        assert len(workflow.tasks) == 3
-        assert workflow.tasks[0].id == "test1"
-        assert workflow.tasks[1].id == "test2"
-        assert workflow.tasks[2].id == "test3"
-        assert len(first_task.parents) == 0
-        assert len(first_task.children) == 0
-        assert len(second_task.parents) == 0
-        assert len(second_task.children) == 0
-        assert len(third_task.parents) == 0
-        assert len(third_task.children) == 0
-
     def test_add_task(self):
         first_task = PromptTask("test1")
         second_task = PromptTask("test2")
@@ -233,11 +216,11 @@ class TestWorkflow:
     @pytest.mark.parametrize(
         "tasks",
         [
-            [PromptTask(id="task1", parent_ids=["missing"])],
-            [PromptTask(id="task1", child_ids=["missing"])],
-            [PromptTask(id="task1"), PromptTask(id="task2", parent_ids=["missing"])],
-            [PromptTask(id="task1"), PromptTask(id="task2", parent_ids=["task1", "missing"])],
-            [PromptTask(id="task1"), PromptTask(id="task2", parent_ids=["task1"], child_ids=["missing"])],
+            [PromptTask(id="task1", parents=["missing"])],
+            [PromptTask(id="task1", children=["missing"])],
+            [PromptTask(id="task1"), PromptTask(id="task2", parents=["missing"])],
+            [PromptTask(id="task1"), PromptTask(id="task2", parents=["task1", "missing"])],
+            [PromptTask(id="task1"), PromptTask(id="task2", parents=["task1"], children=["missing"])],
         ],
     )
     def test_run_raises_on_missing_parent_or_child_id(self, tasks):
@@ -248,28 +231,13 @@ class TestWorkflow:
 
         assert e.value.args[0] == "Task with id missing doesn't exist."
 
-    def test_run_topology_1_declarative_parents(self):
-        workflow = Workflow(
-            prompt_driver=MockPromptDriver(),
-            tasks=[
-                PromptTask("test1", id="task1"),
-                PromptTask("test2", id="task2", parent_ids=["task1"]),
-                PromptTask("test3", id="task3", parent_ids=["task1"]),
-                PromptTask("test4", id="task4", parent_ids=["task2", "task3"]),
-            ],
-        )
-
-        workflow.run()
-
-        self._validate_topology_1(workflow)
-
     def test_run_topology_1_declarative_children(self):
         workflow = Workflow(
             prompt_driver=MockPromptDriver(),
             tasks=[
-                PromptTask("test1", id="task1", child_ids=["task2", "task3"]),
-                PromptTask("test2", id="task2", child_ids=["task4"]),
-                PromptTask("test3", id="task3", child_ids=["task4"]),
+                PromptTask("test1", id="task1", children=["task2", "task3"]),
+                PromptTask("test2", id="task2", children=["task4"]),
+                PromptTask("test3", id="task3", children=["task4"]),
                 PromptTask("test4", id="task4"),
             ],
         )
@@ -282,10 +250,10 @@ class TestWorkflow:
         workflow = Workflow(
             prompt_driver=MockPromptDriver(),
             tasks=[
-                PromptTask("test1", id="task1", child_ids=["task3"]),
-                PromptTask("test2", id="task2", parent_ids=["task1"], child_ids=["task4"]),
+                PromptTask("test1", id="task1", children=["task3"]),
+                PromptTask("test2", id="task2", parents=["task1"], children=["task4"]),
                 PromptTask("test3", id="task3"),
-                PromptTask("test4", id="task4", parent_ids=["task2", "task3"]),
+                PromptTask("test4", id="task4", parents=["task2", "task3"]),
             ],
         )
 
@@ -298,9 +266,6 @@ class TestWorkflow:
         task2 = PromptTask("test2", id="task2")
         task3 = PromptTask("test3", id="task3")
         task4 = PromptTask("test4", id="task4")
-        task2.add_parent(task1)
-        task3.add_parent("task1")
-        task4.add_parents([task2, "task3"])
         workflow = Workflow(prompt_driver=MockPromptDriver(), tasks=[task1, task2, task3, task4])
 
         workflow.run()
@@ -312,9 +277,6 @@ class TestWorkflow:
         task2 = PromptTask("test2", id="task2")
         task3 = PromptTask("test3", id="task3")
         task4 = PromptTask("test4", id="task4")
-        task1.add_children([task2, task3])
-        task2.add_child(task4)
-        task3.add_child(task4)
         workflow = Workflow(prompt_driver=MockPromptDriver(), tasks=[task1, task2, task3, task4])
 
         workflow.run()
@@ -326,8 +288,6 @@ class TestWorkflow:
         task2 = PromptTask("test2", id="task2")
         task3 = PromptTask("test3", id="task3")
         task4 = PromptTask("test4", id="task4")
-        task1.add_children([task2, task3])
-        task4.add_parents([task2, task3])
         workflow = Workflow(prompt_driver=MockPromptDriver(), tasks=[task1, task2, task3, task4])
 
         workflow.run()
@@ -390,15 +350,17 @@ class TestWorkflow:
             workflow.insert_tasks(PromptTask("test1", id="task1"), [task2, task3], task4)
 
     def test_run_topology_2_declarative_parents(self):
+        from griptape.utils import TaskGraphBuilder as b
+
         workflow = Workflow(
             prompt_driver=MockPromptDriver(),
-            tasks=[
-                PromptTask("testa", id="taska"),
-                PromptTask("testb", id="taskb", parent_ids=["taska"]),
-                PromptTask("testc", id="taskc", parent_ids=["taska"]),
-                PromptTask("testd", id="taskd", parent_ids=["taska", "taskb", "taskc"]),
-                PromptTask("teste", id="taske", parent_ids=["taska", "taskd", "taskc"]),
-            ],
+            tasks={
+                b.Task(PromptTask("testa", id="taska")),
+                b.Task(PromptTask("testb", id="taskb"), parents={"taska"}),
+                b.Task(PromptTask("testc", id="taskc"), parents={"taska"}),
+                b.Task(PromptTask("testd", id="taskd"), parents={"taska", "taskb", "taskc"}),
+                b.Task(PromptTask("teste", id="taske"), parents={"taska", "taskd", "taskc"}),
+            },
         )
 
         workflow.run()
@@ -409,11 +371,11 @@ class TestWorkflow:
         workflow = Workflow(
             prompt_driver=MockPromptDriver(),
             tasks=[
-                PromptTask("testa", id="taska", child_ids=["taskb", "taskc", "taskd", "taske"]),
-                PromptTask("testb", id="taskb", child_ids=["taskd"]),
-                PromptTask("testc", id="taskc", child_ids=["taskd", "taske"]),
-                PromptTask("testd", id="taskd", child_ids=["taske"]),
-                PromptTask("teste", id="taske", child_ids=[]),
+                PromptTask("testa", id="taska", children=["taskb", "taskc", "taskd", "taske"]),
+                PromptTask("testb", id="taskb", children=["taskd"]),
+                PromptTask("testc", id="taskc", children=["taskd", "taske"]),
+                PromptTask("testd", id="taskd", children=["taske"]),
+                PromptTask("teste", id="taske", children=[]),
             ],
         )
 
@@ -492,9 +454,9 @@ class TestWorkflow:
             prompt_driver=MockPromptDriver(),
             tasks=[
                 PromptTask("test1", id="task1"),
-                PromptTask("test2", id="task2", parent_ids=["task4"]),
-                PromptTask("test4", id="task4", parent_ids=["task1"]),
-                PromptTask("test3", id="task3", parent_ids=["task2"]),
+                PromptTask("test2", id="task2", parents=["task4"]),
+                PromptTask("test4", id="task4", parents=["task1"]),
+                PromptTask("test3", id="task3", parents=["task2"]),
             ],
         )
 
@@ -506,10 +468,10 @@ class TestWorkflow:
         workflow = Workflow(
             prompt_driver=MockPromptDriver(),
             tasks=[
-                PromptTask("test1", id="task1", child_ids=["task4"]),
-                PromptTask("test2", id="task2", child_ids=["task3"]),
-                PromptTask("test4", id="task4", child_ids=["task2"]),
-                PromptTask("test3", id="task3", child_ids=[]),
+                PromptTask("test1", id="task1", children=["task4"]),
+                PromptTask("test2", id="task2", children=["task3"]),
+                PromptTask("test4", id="task4", children=["task2"]),
+                PromptTask("test3", id="task3", children=[]),
             ],
         )
 
@@ -522,8 +484,8 @@ class TestWorkflow:
             prompt_driver=MockPromptDriver(),
             tasks=[
                 PromptTask("test1", id="task1"),
-                PromptTask("test2", id="task2", parent_ids=["task4"], child_ids=["task3"]),
-                PromptTask("test4", id="task4", parent_ids=["task1"], child_ids=["task2"]),
+                PromptTask("test2", id="task2", parents=["task4"], children=["task3"]),
+                PromptTask("test4", id="task4", parents=["task1"], children=["task2"]),
                 PromptTask("test3", id="task3"),
             ],
         )
@@ -555,14 +517,14 @@ class TestWorkflow:
             prompt_driver=MockPromptDriver(),
             tasks=[
                 PromptTask(id="collect_movie_info"),
-                PromptTask(id="movie_info_1", parent_ids=["collect_movie_info"]),
-                PromptTask(id="movie_info_2", parent_ids=["collect_movie_info"]),
-                PromptTask(id="movie_info_3", parent_ids=["collect_movie_info"]),
-                PromptTask(id="compare_movies", parent_ids=["movie_info_1", "movie_info_2", "movie_info_3"]),
-                PromptTask(id="send_email_task", parent_ids=["compare_movies"]),
-                PromptTask(id="save_to_disk", parent_ids=["compare_movies"]),
-                PromptTask(id="publish_website", parent_ids=["compare_movies"]),
-                PromptTask(id="summarize_to_slack", parent_ids=["send_email_task", "save_to_disk", "publish_website"]),
+                PromptTask(id="movie_info_1", parents=["collect_movie_info"]),
+                PromptTask(id="movie_info_2", parents=["collect_movie_info"]),
+                PromptTask(id="movie_info_3", parents=["collect_movie_info"]),
+                PromptTask(id="compare_movies", parents=["movie_info_1", "movie_info_2", "movie_info_3"]),
+                PromptTask(id="send_email_task", parents=["compare_movies"]),
+                PromptTask(id="save_to_disk", parents=["compare_movies"]),
+                PromptTask(id="publish_website", parents=["compare_movies"]),
+                PromptTask(id="summarize_to_slack", parents=["send_email_task", "save_to_disk", "publish_website"]),
             ],
         )
 
@@ -574,15 +536,15 @@ class TestWorkflow:
         workflow = Workflow(
             prompt_driver=MockPromptDriver(),
             tasks=[
-                PromptTask(id="collect_movie_info", child_ids=["movie_info_1", "movie_info_2", "movie_info_3"]),
-                PromptTask(id="movie_info_1", child_ids=["compare_movies"]),
-                PromptTask(id="movie_info_2", child_ids=["compare_movies"]),
-                PromptTask(id="movie_info_3", child_ids=["compare_movies"]),
-                PromptTask(id="compare_movies", child_ids=["send_email_task", "save_to_disk", "publish_website"]),
-                PromptTask(id="send_email_task", child_ids=["summarize_to_slack"]),
-                PromptTask(id="save_to_disk", child_ids=["summarize_to_slack"]),
-                PromptTask(id="publish_website", child_ids=["summarize_to_slack"]),
-                PromptTask(id="summarize_to_slack", child_ids=[]),
+                PromptTask(id="collect_movie_info", children=["movie_info_1", "movie_info_2", "movie_info_3"]),
+                PromptTask(id="movie_info_1", children=["compare_movies"]),
+                PromptTask(id="movie_info_2", children=["compare_movies"]),
+                PromptTask(id="movie_info_3", children=["compare_movies"]),
+                PromptTask(id="compare_movies", children=["send_email_task", "save_to_disk", "publish_website"]),
+                PromptTask(id="send_email_task", children=["summarize_to_slack"]),
+                PromptTask(id="save_to_disk", children=["summarize_to_slack"]),
+                PromptTask(id="publish_website", children=["summarize_to_slack"]),
+                PromptTask(id="summarize_to_slack", children=[]),
             ],
         )
 
@@ -595,13 +557,13 @@ class TestWorkflow:
             prompt_driver=MockPromptDriver(),
             tasks=[
                 PromptTask(id="collect_movie_info"),
-                PromptTask(id="movie_info_1", parent_ids=["collect_movie_info"], child_ids=["compare_movies"]),
-                PromptTask(id="movie_info_2", parent_ids=["collect_movie_info"], child_ids=["compare_movies"]),
-                PromptTask(id="movie_info_3", parent_ids=["collect_movie_info"], child_ids=["compare_movies"]),
+                PromptTask(id="movie_info_1", parents=["collect_movie_info"], children=["compare_movies"]),
+                PromptTask(id="movie_info_2", parents=["collect_movie_info"], children=["compare_movies"]),
+                PromptTask(id="movie_info_3", parents=["collect_movie_info"], children=["compare_movies"]),
                 PromptTask(id="compare_movies"),
-                PromptTask(id="send_email_task", parent_ids=["compare_movies"], child_ids=["summarize_to_slack"]),
-                PromptTask(id="save_to_disk", parent_ids=["compare_movies"], child_ids=["summarize_to_slack"]),
-                PromptTask(id="publish_website", parent_ids=["compare_movies"], child_ids=["summarize_to_slack"]),
+                PromptTask(id="send_email_task", parents=["compare_movies"], children=["summarize_to_slack"]),
+                PromptTask(id="save_to_disk", parents=["compare_movies"], children=["summarize_to_slack"]),
+                PromptTask(id="publish_website", parents=["compare_movies"], children=["summarize_to_slack"]),
                 PromptTask(id="summarize_to_slack"),
             ],
         )
@@ -633,14 +595,10 @@ class TestWorkflow:
     @pytest.mark.parametrize(
         "tasks",
         [
-            [PromptTask(id="a", parent_ids=["a"])],
-            [PromptTask(id="a"), PromptTask(id="b", parent_ids=["a", "b"])],
-            [PromptTask(id="a", parent_ids=["b"]), PromptTask(id="b", parent_ids=["a"])],
-            [
-                PromptTask(id="a", parent_ids=["c"]),
-                PromptTask(id="b", parent_ids=["a"]),
-                PromptTask(id="c", parent_ids=["b"]),
-            ],
+            [PromptTask(id="a", parents=["a"])],
+            [PromptTask(id="a"), PromptTask(id="b", parents=["a", "b"])],
+            [PromptTask(id="a", parents=["b"]), PromptTask(id="b", parents=["a"])],
+            [PromptTask(id="a", parents=["c"]), PromptTask(id="b", parents=["a"]), PromptTask(id="c", parents=["b"])],
         ],
     )
     def test_run_raises_on_cycle(self, tasks):
@@ -781,28 +739,28 @@ class TestWorkflow:
         assert len(workflow.tasks) == 4
         assert workflow.input_task.id == "task1"
         assert workflow.output_task.id == "task4"
-        assert workflow.input_task.id == workflow.tasks[0].id
-        assert workflow.output_task.id == workflow.tasks[-1].id
+        assert workflow.input_task.id == workflow.ordered_tasks[0].id
+        assert workflow.output_task.id == workflow.ordered_tasks[-1].id
 
         task1 = workflow.find_task("task1")
         assert task1.state == BaseTask.State.FINISHED
-        assert task1.parent_ids == []
-        assert sorted(task1.child_ids) == ["task2", "task3"]
+        assert task1.parents == []
+        assert sorted(task1.children) == ["task2", "task3"]
 
         task2 = workflow.find_task("task2")
         assert task2.state == BaseTask.State.FINISHED
-        assert task2.parent_ids == ["task1"]
-        assert task2.child_ids == ["task4"]
+        assert task2.parents == ["task1"]
+        assert task2.children == ["task4"]
 
         task3 = workflow.find_task("task3")
         assert task3.state == BaseTask.State.FINISHED
-        assert task3.parent_ids == ["task1"]
-        assert task3.child_ids == ["task4"]
+        assert task3.parents == ["task1"]
+        assert task3.children == ["task4"]
 
         task4 = workflow.find_task("task4")
         assert task4.state == BaseTask.State.FINISHED
-        assert sorted(task4.parent_ids) == ["task2", "task3"]
-        assert task4.child_ids == []
+        assert sorted(task4.parents) == ["task2", "task3"]
+        assert task4.children == []
 
     @staticmethod
     def _validate_topology_2(workflow):
@@ -815,28 +773,28 @@ class TestWorkflow:
 
         taska = workflow.find_task("taska")
         assert taska.state == BaseTask.State.FINISHED
-        assert taska.parent_ids == []
-        assert sorted(taska.child_ids) == ["taskb", "taskc", "taskd", "taske"]
+        assert taska.parents == []
+        assert sorted(taska.children) == ["taskb", "taskc", "taskd", "taske"]
 
         taskb = workflow.find_task("taskb")
         assert taskb.state == BaseTask.State.FINISHED
-        assert taskb.parent_ids == ["taska"]
-        assert taskb.child_ids == ["taskd"]
+        assert taskb.parents == ["taska"]
+        assert taskb.children == ["taskd"]
 
         taskc = workflow.find_task("taskc")
         assert taskc.state == BaseTask.State.FINISHED
-        assert taskc.parent_ids == ["taska"]
-        assert sorted(taskc.child_ids) == ["taskd", "taske"]
+        assert taskc.parents == ["taska"]
+        assert sorted(taskc.children) == ["taskd", "taske"]
 
         taskd = workflow.find_task("taskd")
         assert taskd.state == BaseTask.State.FINISHED
-        assert sorted(taskd.parent_ids) == ["taska", "taskb", "taskc"]
-        assert taskd.child_ids == ["taske"]
+        assert sorted(taskd.parents) == ["taska", "taskb", "taskc"]
+        assert taskd.children == ["taske"]
 
         taske = workflow.find_task("taske")
         assert taske.state == BaseTask.State.FINISHED
-        assert sorted(taske.parent_ids) == ["taska", "taskc", "taskd"]
-        assert taske.child_ids == []
+        assert sorted(taske.parents) == ["taska", "taskc", "taskd"]
+        assert taske.children == []
 
     @staticmethod
     def _validate_topology_3(workflow):
@@ -848,23 +806,23 @@ class TestWorkflow:
 
         task1 = workflow.find_task("task1")
         assert task1.state == BaseTask.State.FINISHED
-        assert task1.parent_ids == []
-        assert task1.child_ids == ["task4"]
+        assert task1.parents == []
+        assert task1.children == ["task4"]
 
         task2 = workflow.find_task("task2")
         assert task2.state == BaseTask.State.FINISHED
-        assert task2.parent_ids == ["task4"]
-        assert task2.child_ids == ["task3"]
+        assert task2.parents == ["task4"]
+        assert task2.children == ["task3"]
 
         task3 = workflow.find_task("task3")
         assert task3.state == BaseTask.State.FINISHED
-        assert task3.parent_ids == ["task2"]
-        assert task3.child_ids == []
+        assert task3.parents == ["task2"]
+        assert task3.children == []
 
         task4 = workflow.find_task("task4")
         assert task4.state == BaseTask.State.FINISHED
-        assert task4.parent_ids == ["task1"]
-        assert task4.child_ids == ["task2"]
+        assert task4.parents == ["task1"]
+        assert task4.children == ["task2"]
 
     @staticmethod
     def _validate_topology_4(workflow):
@@ -875,33 +833,33 @@ class TestWorkflow:
         assert workflow.output_task.id == workflow.tasks[-1].id
 
         collect_movie_info = workflow.find_task("collect_movie_info")
-        assert collect_movie_info.parent_ids == []
-        assert sorted(collect_movie_info.child_ids) == ["movie_info_1", "movie_info_2", "movie_info_3"]
+        assert collect_movie_info.parents == []
+        assert sorted(collect_movie_info.children) == ["movie_info_1", "movie_info_2", "movie_info_3"]
 
         movie_info_1 = workflow.find_task("movie_info_1")
-        assert movie_info_1.parent_ids == ["collect_movie_info"]
-        assert movie_info_1.child_ids == ["compare_movies"]
+        assert movie_info_1.parents == ["collect_movie_info"]
+        assert movie_info_1.children == ["compare_movies"]
 
         movie_info_2 = workflow.find_task("movie_info_2")
-        assert movie_info_2.parent_ids == ["collect_movie_info"]
-        assert movie_info_2.child_ids == ["compare_movies"]
+        assert movie_info_2.parents == ["collect_movie_info"]
+        assert movie_info_2.children == ["compare_movies"]
 
         movie_info_3 = workflow.find_task("movie_info_3")
-        assert movie_info_3.parent_ids == ["collect_movie_info"]
-        assert movie_info_3.child_ids == ["compare_movies"]
+        assert movie_info_3.parents == ["collect_movie_info"]
+        assert movie_info_3.children == ["compare_movies"]
 
         compare_movies = workflow.find_task("compare_movies")
-        assert sorted(compare_movies.parent_ids) == ["movie_info_1", "movie_info_2", "movie_info_3"]
-        assert sorted(compare_movies.child_ids) == ["publish_website", "save_to_disk", "send_email_task"]
+        assert sorted(compare_movies.parents) == ["movie_info_1", "movie_info_2", "movie_info_3"]
+        assert sorted(compare_movies.children) == ["publish_website", "save_to_disk", "send_email_task"]
 
         send_email_task = workflow.find_task("send_email_task")
-        assert send_email_task.parent_ids == ["compare_movies"]
-        assert send_email_task.child_ids == ["summarize_to_slack"]
+        assert send_email_task.parents == ["compare_movies"]
+        assert send_email_task.children == ["summarize_to_slack"]
 
         save_to_disk = workflow.find_task("save_to_disk")
-        assert save_to_disk.parent_ids == ["compare_movies"]
-        assert save_to_disk.child_ids == ["summarize_to_slack"]
+        assert save_to_disk.parents == ["compare_movies"]
+        assert save_to_disk.children == ["summarize_to_slack"]
 
         publish_website = workflow.find_task("publish_website")
-        assert publish_website.parent_ids == ["compare_movies"]
-        assert publish_website.child_ids == ["summarize_to_slack"]
+        assert publish_website.parents == ["compare_movies"]
+        assert publish_website.children == ["summarize_to_slack"]

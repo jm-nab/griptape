@@ -1,6 +1,6 @@
 from __future__ import annotations
 import json
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 from attrs import define, field, Factory
 
 from griptape import utils
@@ -8,6 +8,7 @@ from griptape.artifacts import BaseArtifact, ErrorArtifact, TextArtifact, ListAr
 from griptape.mixins import ActionsSubtaskOriginMixin
 from griptape.tasks import ActionsSubtask
 from griptape.tasks import PromptTask
+from griptape.tasks.base_task import BaseTask
 from griptape.utils import J2
 from griptape.common import PromptStack, ToolAction
 
@@ -194,9 +195,10 @@ class ToolkitTask(PromptTask, ActionsSubtaskOriginMixin):
     def add_subtask(self, subtask: ActionsSubtask) -> ActionsSubtask:
         subtask.attach_to(self)
 
-        if len(self.subtasks) > 0:
-            self.subtasks[-1].add_child(subtask)
-            subtask.add_parent(self.subtasks[-1])
+        # TODO: do something here
+        # if len(self.subtasks) > 0:
+        #     self.subtasks[-1].add_child(subtask)
+        #     subtask.add_parent(self.subtasks[-1])
 
         self.subtasks.append(subtask)
 
@@ -213,3 +215,9 @@ class ToolkitTask(PromptTask, ActionsSubtaskOriginMixin):
             if memory.name == memory_name:
                 return memory
         raise ValueError(f"Memory with name {memory_name} not found.")
+    
+    def __hash__(self) -> int:
+        return BaseTask.__hash__(self)
+
+    def __eq__(self, other: Any) -> bool:
+        return BaseTask.__eq__(self, other)
