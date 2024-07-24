@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Observability` context manager for enabling observability and configuring which Observability Driver to use.
 - `@observable` decorator for selecting which functions/methods to provide observability for.
 - `GenericArtifact` for storing any data.
+- Optional `params` field to `WebSearch`'s `search` schema that the LLM can be steered into using.
 
 ### Changed
 - **BREAKING**: `BaseVectorStoreDriver.upsert_text_artifacts` optional arguments are now keyword-only arguments.
@@ -37,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Renamed `drivers-vector-postgresql` extra to `drivers-vector-pgvector`.
 - **BREAKING**: Update `marqo` dependency to `^3.7.0`.
 - **BREAKING**: Removed `drivers-sql-postgresql` extra. Use `drivers-sql` extra and install necessary drivers (i.e. `psycopg2`) separately.
+- **BREAKING**: `api_key` and `search_id` are now required fields in `GoogleWebSearchDriver`.
+- **BREAKING**: `web_search_driver` is now required fields in the `WebSearch` Tool.
+- `GoogleWebSearchDriver` and `DuckDuckGoWebSearchDriver` now use `kwargs` passed to the `run` method.
 - Removed unnecessary `sqlalchemy-redshift` dependency in `drivers-sql-amazon-redshift` extra.
 - Removed unnecessary `transformers` dependency in `drivers-prompt-huggingface` extra.
 - Removed unnecessary `huggingface-hub` dependency in `drivers-prompt-huggingface-pipeline` extra.
